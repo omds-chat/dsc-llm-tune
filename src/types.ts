@@ -14,6 +14,7 @@ export type DscCapability =
   | 'events:session'
   | 'notify'
   | 'settings:locale'
+  | 'settings:surface'
   | 'plugins:storage'
   | 'net:fetch'
   | 'chat:request'
@@ -45,6 +46,53 @@ export interface PluginManifest {
  */
 export interface PluginUiApi {
   notify(key: string, params?: Record<string, string | number>): void
+}
+
+/**
+ * 能力 settings:surface 的字段描述(契约的本地副本,形状以引擎 pluginSettings.ts 为准)。
+ * 插件在激活期登记一份字段描述,宿主据此渲染设置表单;控件形态、样式与渲染归宿主。
+ */
+export type SettingFieldType = 'switch' | 'select' | 'number' | 'text' | 'secret'
+
+/** 设置字段的值;只有标量 */
+export type SettingValue = string | number | boolean
+
+/** 单个设置字段的描述;只覆盖本插件用到的类型与约束 */
+export interface SettingFieldDescriptor {
+  /** 字段键,同一份描述内不得重复,也是设置存储的键 */
+  readonly key: string
+  readonly type: SettingFieldType
+  /** 字段标签;labelKey 必须是宿主 i18n 字典里的键,与 label 二选一 */
+  readonly labelKey?: string
+  /** 字段标签;插件直给的文案(1 到 40 字符) */
+  readonly label?: string
+  /** 默认值;非 secret 字段必填,须通过该字段自己的取值校验 */
+  readonly default?: SettingValue
+  /** number 的取值范围 */
+  readonly min?: number
+  readonly max?: number
+  /** number 的步进;只影响宿主控件交互,不参与校验 */
+  readonly step?: number
+  /** text 的长度上限 */
+  readonly maxLength?: number
+}
+
+/** 一份设置表面描述 */
+export interface SettingDescriptor {
+  /** 字段清单;至少一个字段,同一插件只保留最后登记的一份 */
+  readonly fields: readonly SettingFieldDescriptor[]
+}
+
+/**
+ * 能力 settings:surface 与 settings:locale 的设置入口。
+ * register 在激活期登记字段描述,返回释放函数,停用随引擎清理;描述非法时抛错。
+ * values 只读自身设置命名空间:用户覆盖值优先,否则默认值;同步返回。
+ */
+export interface PluginSettingsApi {
+  /** 当前宿主语言,用于插件直给文案的选词 */
+  locale(): Promise<'zh-CN' | 'en-US'>
+  register(descriptor: SettingDescriptor): () => void
+  values(): Record<string, SettingValue>
 }
 
 /**
@@ -98,7 +146,7 @@ export interface PluginChatApi {
 /**
  * 激活时注入的上下文。
  * 各能力成员只在清单申请了对应能力时可用,未申请时调用抛 PluginCapabilityError。
- * 本插件只申请 notify、plugins:storage 与 chat:request,因此只声明这三项能力对象。
+ * 本插件申请 notify、plugins:storage、chat:request、settings:locale 与 settings:surface。
  */
 export interface PluginContext {
   /** 当前插件 id,与清单一致 */
@@ -108,6 +156,7 @@ export interface PluginContext {
   /** 写入该插件的日志,可在插件面板的「查看日志」中读取 */
   log(message: string): void
   ui: PluginUiApi
+  settings: PluginSettingsApi
   storage: PluginStorageApi
   chat: PluginChatApi
 }

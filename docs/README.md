@@ -10,14 +10,14 @@
 | [README.md](../README.md) | 本仓库的开发者入口 | 插件定位、参数集合与补丁映射、当前的设定入口、工程结构、构建与自检方式 | 首次进入本仓库、要改源码或构建产物时 | 贡献者、维护者 |
 | [README.en-US.md](../README.en-US.md) | 上文 README.md 的英文版 | 与中文版同构的英文说明 | 需要英文说明、对外引用仓库说明时 | 贡献者、用户 |
 | [docs/README.md](README.md) | 本索引:文档总入口 | 文档清单、冲突时的准据、文档分层、维护约定 | 查找任意文档、判断两份文档说法不一致时 | Agent、贡献者、维护者 |
-| [docs/design/parameter-tuning.md](design/parameter-tuning.md) | 请求参数调优的设计定稿与未定稿 | 定位与边界、与 dsc-humanize 的互斥、参数集合、参数文档与插件存储、请求前补丁、配置界面缺口、已排除做法、与 dsc-inner-plugin 的关系、未定稿项 | 改动参数集合、存储键、导入入口、互斥声明,或判断宿主能力是否够用时 | 维护者、Agent |
+| [docs/design/parameter-tuning.md](design/parameter-tuning.md) | 请求参数调优的设计定稿与未定稿 | 定位与边界、与 dsc-humanize 的互斥、参数集合、参数文档与插件存储、请求前补丁、宿主设置表面接入与取值优先级、已排除做法、与 dsc-inner-plugin 的关系、未定稿项 | 改动参数集合、存储键、导入入口、设置字段、互斥声明,或判断宿主能力是否够用时 | 维护者、Agent |
 | [specs/README.md](../specs/README.md) | 规范区的索引与差异留痕 | 规范文件清单、权威来源与引用约定、校验命令、与宿主实现的已知差异 | 引用规范、核对两侧口径、运行规范校验时 | 贡献者、维护者、Agent |
 | [specs/plugin-runtime-spec.md](../specs/plugin-runtime-spec.md) | 插件运行时规范 | 产物形态、导出契约、生命周期与超时、能力与限流、上下文成员、安全边界、错误降级 | 写运行时行为、申请能力、对接宿主时 | 贡献者、Agent |
 | [specs/plugin-develop-spec.md](../specs/plugin-develop-spec.md) | 插件开发规范 | 清单字段与校验、版本与依赖、运行时 meta、分发要求、请求前补丁 | 改清单、改构建产物、改请求前补丁时 | 贡献者、维护者 |
 
 - JSON Schema、样例与 `specs/spec-version.json` 属于机器可校验的资产,不按文档计入本表,由 [specs/README.md](../specs/README.md) 统一收拢与说明。
 - `LICENSE` 与 `COPYRIGHT` 不属于说明性文档,不列入本表。
-- 本仓库还没有面向普通用户的 `README.user.md`:插件当前没有配置界面,用户可执行的操作很少,相关内容先写在 [README.md](../README.md) 的「参数设定入口」一节,界面落地后再决定是否单独拆一份。
+- 本仓库还没有面向普通用户的 `README.user.md`:插件的可执行操作已收拢在 [README.md](../README.md) 的「参数设定入口」一节,需要单独拆分用户文档时再新建。
 
 ## 二、冲突时以谁为准
 

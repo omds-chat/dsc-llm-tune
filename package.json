@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "dsc 插件 dsc-llm-tune:让用户直接设定 LLM 请求参数(温度、top_p、max_tokens、停止词),不提供预设;与 dsc-humanize 互斥;设置界面待宿主提供插件设置表面,当前用插件存储与 JSON 文本导入",
+  "description": "dsc 插件 dsc-llm-tune:让用户直接设定 LLM 请求参数(温度、top_p、max_tokens、停止词),不提供预设;与 dsc-humanize 互斥;已接入宿主插件设置表面,JSON 文本导入保留为兼容路径",
   "license": "Apache-2.0",
   "author": "omds-chat",
   "scripts": {
@@ -15,8 +15,8 @@
   "dsc": {
     "engines": "^1.0.0",
     "description": {
-      "zh-CN": "直接设定 LLM 请求参数的 dsc 插件:温度、top_p、max_tokens 与停止词由用户输入,不提供预设;与 dsc-humanize 互斥;设置界面待宿主提供插件设置表面,当前用插件存储与 JSON 文本导入",
-      "en-US": "A dsc plugin that lets you set LLM request parameters directly: temperature, top_p, max_tokens and stop sequences come from you, with no presets; mutually exclusive with dsc-humanize; the settings UI awaits a host plugin-settings surface, so parameters currently come from plugin storage and a JSON text import"
+      "zh-CN": "直接设定 LLM 请求参数的 dsc 插件:温度、top_p、max_tokens 与停止词由用户输入,不提供预设;与 dsc-humanize 互斥;已接入宿主插件设置表面,JSON 文本导入保留为兼容路径",
+      "en-US": "A dsc plugin that lets you set LLM request parameters directly: temperature, top_p, max_tokens and stop sequences come from you, with no presets; mutually exclusive with dsc-humanize; values are set in the host plugin settings page, with the JSON import kept as the compatibility path"
     },
     "home_page": "https://github.com/omds-chat/dsc-llm-tune",
     "repo_link": "https://github.com/omds-chat/dsc-llm-tune"

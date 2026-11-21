@@ -78,6 +78,7 @@
 | `events:session` | `context.events.on` | 5 次 / 10 秒 | 同步调用 | 全部插件 |
 | `notify` | `context.ui.notify` | 10 次 / 10 秒 | 同步调用 | 全部插件 |
 | `settings:locale` | `context.settings.locale` | 60 次 / 10 秒 | 3 秒 | 全部插件 |
+| `settings:surface` | `context.settings.register`、`context.settings.values` | 60 次 / 10 秒(登记与读取共窗) | 同步调用 | 全部插件 |
 | `plugins:storage` | `context.storage.get`、`set`、`remove` | 100 次 / 10 秒 | 同步调用 | 全部插件 |
 | `net:fetch` | `context.net.getText` | 10 次 / 10 秒 | 内层 10 秒中止请求,外层 12 秒兜底 | 仅内置插件 |
 
@@ -101,6 +102,8 @@
 | `context.events.on(point, handler)` | 释放函数 | 订阅挂载点,释放函数由引擎执行 |
 | `context.ui.notify(key, params?)` | 无返回 | 宿主提示,key 取自宿主 i18n 既有文案键 |
 | `context.settings.locale(options?)` | `Promise<'zh-CN' \| 'en-US'>` | 当前语言 |
+| `context.settings.register(descriptor)` | 释放函数 | 登记设置字段描述,宿主据此渲染设置表单;描述非法抛 `PluginSettingsError`,登记随停用撤销 |
+| `context.settings.values()` | `Record<string, string \| number \| boolean>` | 只读自身设置值:覆盖值优先,否则登记默认值;secret 字段不返回 |
 | `context.storage.get(key)` | `unknown` | 缺失的键返回 `null` |
 | `context.storage.set(key, value)` | 无返回 | 值须可 JSON 序列化 |
 | `context.storage.remove(key)` | 无返回 | 键不存在时不报错 |
@@ -116,7 +119,7 @@
 | 会话摘要 | `id`、`title`、`createdAt`、`updatedAt` |
 | 会话内容 | 摘要字段与 `messages`;消息含 `id`、`role`、`createdAt`、`text`、`attachments`,附件含 `name`、`size`、`isImage` |
 | 事件 | `session:changed` 与当前会话 `activeId` |
-| 设置 | 当前语言 |
+| 设置 | 当前语言与本插件登记字段的设置值(其他插件的设置不可见) |
 | 插件数据 | 该插件自己写入的键值,读写按插件 id 隔离 |
 
 不可见:API Key、附件的本地 id 与服务端 file_id、附件原件、请求快照、分支内部结构、其他插件的本地数据、请求 Cookie。

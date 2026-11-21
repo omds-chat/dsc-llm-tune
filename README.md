@@ -6,7 +6,7 @@ dsc-llm-tune 是一个 dsc 插件,把 LLM 请求的常规参数直接交给用�
 
 同一个请求的采样参数不该由两个插件同时决定,因此本插件与 dsc-humanize 互斥:两者都申请 `chat:request`、都声明 `chat:before-request`,同时安装时补丁会按登记顺序互相覆盖。互斥声明写在两侧的清单里,本仓库负责自己这一份。
 
-插件最终由 dsc-inner-plugin 收录;当前仓库是骨架与最小可用实现,配置界面的缺口与取舍见 [docs/design/parameter-tuning.md](docs/design/parameter-tuning.md)。
+插件最终由 dsc-inner-plugin 收录;参数在宿主插件详情页的设置表单里设定(总开关默认关),JSON 导入保留为兼容路径,取舍见 [docs/design/parameter-tuning.md](docs/design/parameter-tuning.md)。
 
 ## 定位
 
@@ -26,10 +26,11 @@ dsc-llm-tune 是一个 dsc 插件,把 LLM 请求的常规参数直接交给用�
 - 一套可校验的规范区:运行时规范、开发规范与 JSON Schema 的副本,随仓库保留用于本地校验
 - 一层参数校验:四个参数的取值范围、类型与停止词规则,任一不合法整份拒绝
 - 一条插件存储链路:参数文档存在 `dsc-llm-tune/params/v1`,激活时读取并装配
-- 一条宿主请求前接线:申请 `chat:request` 能力并声明 `chat:before-request` 挂载点,把当前参数映射成宿主补丁;没有设定时返回 `null`
-- 一个最小导入入口:`importParameters(jsonText)` 与 `clearParameters()`,作为配置界面落地前的过渡
-- 一套零依赖测试:用 Node 内置的 `node:test` 覆盖参数校验、补丁映射、存储装配与导入导出
-- 尚未实现的:参数配置界面(宿主还没有提供插件设置表面)、参数文档导出
+- 一条宿主请求前接线:申请 `chat:request` 能力并声明 `chat:before-request` 挂载点,把设置页取值与导入参数按优先级合并成宿主补丁;两侧都没有时返回 `null`
+- 一份宿主设置表面登记:申请 `settings:locale` 与 `settings:surface`,激活期登记参数字段描述,宿主在插件详情页渲染设置表单
+- 一个最小导入入口:`importParameters(jsonText)` 与 `clearParameters()`,作为兼容路径保留
+- 一套零依赖测试:用 Node 内置的 `node:test` 覆盖参数校验、补丁映射、存储装配、导入导出与设置值合并
+- 尚未实现的:参数文档导出
 
 ## 请求参数与补丁
 
@@ -41,13 +42,37 @@ dsc-llm-tune 是一个 dsc 插件,把 LLM 请求的常规参数直接交给用�
 | 停止词 | `stop` | 最多 4 条,每条最多 32 个字符 | `stop` | 按原样保留,只去完全重复项 |
 
 - 四个字段都可以缺省;缺省的字段不进补丁,请求里的对应项保持宿主的原值。四项都不给时补丁为空,处理器返回 `null`。
-- 校验只发生在导入期:越界值整份拒绝,用户能看到错误,而不是拿到被悄悄改过的结果。请求前不重复校验,也不裁剪。
+- 校验发生在入口期:导入路径越界整份拒绝,设置页取值由宿主按登记的范围校验后才落盘;请求前不重复校验,也不裁剪。
 - 不使用 `systemPromptAppend` 与 `systemPromptReplace`:提示词属于 dsc-humanize 的领域,本插件只碰采样参数与停止词。
 - 补丁的字段范围、合并顺序与收敛规则见 [specs/plugin-develop-spec.md](specs/plugin-develop-spec.md) 2.5 节。
 
-## 参数设定入口(当前)
+## 参数设定入口
 
-> 插件目前没有配置界面:宿主的能力表里没有「插件设置」这一项,`context.ui` 只有 `notify`。缺口、候选方案与未定稿项写在 [docs/design/parameter-tuning.md](docs/design/parameter-tuning.md) 第六节。
+参数有两个入口:宿主设置页(主入口)与 JSON 导入(兼容路径)。优先级逐字段判定,完整规则写在 [docs/design/parameter-tuning.md](docs/design/parameter-tuning.md) 6.3 节:
+
+| 优先级 | 条件 | 结果 |
+|:---:|:---:|:---:|
+| 1 | 设置页总开关打开,且该字段在设置页改过(生效值不等于登记默认值) | 以设置页为准 |
+| 2 | 该字段设置页没有覆盖值 | 回落导入值(存储里的参数文档) |
+| 3 | 两侧都没有 | 该字段不进补丁;全部字段都没有时请求保持原样 |
+
+### 设置页(主入口)
+
+宿主已提供插件设置表面:已安装列表点插件名进详情页,表单由宿主按插件登记的字段描述渲染。本插件登记五个字段:
+
+| 字段 | 控件 | 取值 | 登记默认值 |
+|:---:|:---:|:---:|:---:|
+| 启用设置页参数 | switch | 开 / 关 | 关 |
+| 温度 temperature | number | 0 到 2 | `1` |
+| top_p | number | 0 到 1 | `1` |
+| 最大生成 token 数 | number | 1 到 4096 的整数 | `4096` |
+| 停止词 | text | 逗号分隔,最多 4 条,每条最多 32 字符 | 留空 |
+
+- 登记默认值不是预设:没改过的字段不进补丁,只有改过的字段才以设置页为准;总开关默认关,只导入不碰设置页时行为与旧版一致。
+- 停止词文本框按逗号切分,每条去首尾空白;要保留空白字符的停止词请走导入入口。
+- 字段标签按激活时的宿主语言渲染,激活后切换语言需要重新激活插件。
+
+### JSON 导入(兼容路径)
 
 参数以一份 JSON 文档整体存放,存在插件存储的 `dsc-llm-tune/params/v1` 键下:
 
@@ -90,7 +115,8 @@ clearParameters()
 
 - `importParameters` 返回 `{ ok: true, params, persisted }` 或 `{ ok: false, error }`;`persisted` 为 `false` 表示只装配到内存,例如未激活或写入存储失败。
 - 未激活时导入只装配到内存,下一次激活以插件存储为准。
-- 过渡入口的限制:用户拿不到可点的界面,只能由将来的面板或测试调用;也没有导出,改一个值要重写整份文档。
+- 导入路径的限制:入口是函数而非界面,适合批量粘贴、调试与保留空白字符的停止词;设置页有覆盖值的字段以设置页为准,导入值不生效。
+- 撤销导入用 `clearParameters()`;设置页的取值由宿主的设置命名空间管理,不在这条路径里清除,要清空某个字段请在设置页把该项重置为默认。
 
 ## 与 dsc-humanize 互斥
 
@@ -141,20 +167,21 @@ dsc-llm-tune/
 ├── docs/
 │   ├── README.md             # 文档索引
 │   └── design/
-│       └── parameter-tuning.md # 参数调优设计:边界、互斥、缺口、未定稿
+│       └── parameter-tuning.md # 参数调优设计:边界、互斥、设置表面、未定稿
 ├── schemas/                  # 清单与运行时 meta 的 JSON Schema 及样例
 ├── scripts/
 │   ├── test/                 # 零依赖测试
 │   │   ├── ts-hooks.mjs      # 让测试直接加载 .ts 源码的解析钩子
-│   │   └── tuning.test.ts    # 参数校验、补丁映射、存储装配与导入
+│   │   └── tuning.test.ts    # 参数校验、补丁映射、存储装配、导入与设置值合并
 │   └── validate-specs.mjs    # 零依赖规范校验脚本
 ├── specs/                    # 规范副本:运行时规范、开发规范与版本信息
 └── src/
-    ├── index.ts              # 激活与停用入口,参数导入与清除
+    ├── index.ts              # 激活与停用入口,设置表面登记与参数导入清除
     ├── manifest.ts           # 运行时清单
     ├── types.ts              # 契约类型
     ├── host/
     │   ├── request-patch.ts  # 参数 -> 请求补丁
+    │   ├── settings.ts       # 设置表面:字段描述、zh/en 词条与取值优先级合并
     │   └── store.ts          # 参数文档:键名、形状与读取校验
     └── tuning/
         └── params.ts         # 参数取值、校验与内存形状
@@ -240,7 +267,7 @@ dist/
 | `engines` | 否 | 兼容的 dsc-core 版本范围,当前为 `^1.0.0` |
 | `dependencies` | 否 | 依赖的插件 id,本插件没有 |
 | `conflicts` | 否 | 冲突的插件 id,本插件写 `dsc-humanize` |
-| `capabilities` | 是 | 申请的能力:当前为 `notify`、`plugins:storage`、`chat:request` |
+| `capabilities` | 是 | 申请的能力:当前为 `notify`、`plugins:storage`、`chat:request`、`settings:locale`、`settings:surface` |
 | `mounts` | 否 | 订阅的挂载点,当前只有 `chat:before-request` |
 
 改清单时的注意事项:
@@ -257,18 +284,24 @@ dist/
 | `notify` | `context.ui.notify` | 10 次 / 10 秒 |
 | `plugins:storage` | `context.storage` | 100 次 / 10 秒,单插件 64KB |
 | `chat:request` | `context.chat.onBeforeRequest` | 10 次 / 10 秒(仅登记) |
+| `settings:locale` | `context.settings.locale` | 60 次 / 10 秒 |
+| `settings:surface` | `context.settings.register`、`context.settings.values` | 60 次 / 10 秒(登记与读取共窗) |
 | `sessions:list`、`sessions:read`、`sessions:rename` | `context.sessions.*` | 本插件未申请 |
 | `events:session` | `context.events.on` | 本插件未申请 |
-| `settings:locale` | `context.settings.locale` | 本插件未申请 |
 | `net:fetch` | `context.net.*` | 仅内置插件可申请,本插件不联网 |
 
-本插件只申请 `notify`、`plugins:storage` 与 `chat:request` 三项能力,声明 `chat:before-request` 一个挂载点:参数要持久化所以需要存储,首次激活提示需要 `notify`,请求补丁需要 `chat:request`;会话列表、事件订阅与联网都用不到,不申请。
+本插件申请 `notify`、`plugins:storage`、`chat:request`、`settings:locale` 与 `settings:surface` 五项能力,声明 `chat:before-request` 一个挂载点:参数要持久化所以需要存储,首次激活提示需要 `notify`,请求补丁需要 `chat:request`,设置页字段描述与取值需要 `settings:surface`,字段标签选词需要 `settings:locale`;会话列表、事件订阅与联网都用不到,不申请。
 
 ## 常见问题
 
 ### 参数设定后没有生效
 
-按顺序检查:参数是否导入成功(`importParameters` 返回的 `ok`)、是否被后续的清除或重新激活覆盖、插件日志里是否出现「已装配参数」或「未找到参数文档」。重新激活时以插件存储为准,未激活时导入只装配到内存。
+按顺序检查:
+
+1. 设置页路径:总开关「启用设置页参数」是否打开;改过的字段取值是否恰好等于登记默认值(等于默认值按未改动处理,回落导入值)。
+2. 导入路径:参数是否导入成功(`importParameters` 返回的 `ok`)、是否被后续的清除或重新激活覆盖、插件日志里是否出现「已装配参数」或「未找到参数文档」。
+3. 两条路径都看了再对照优先级:设置页改过的字段以设置页为准,其余字段以导入值为准;两侧都没有时请求保持原样。
+4. 重新激活时导入路径以插件存储为准,未激活时导入只装配到内存;设置页取值在请求前实时读取,保存后无需重新激活。
 
 ### 存储里的值被判为不可用
 
@@ -290,4 +323,4 @@ dist/
 - 发布前在浏览器控制台执行一次 `import('https://你的地址/plugin.js')`,确认没有语法错误与缺失依赖。
 - `dist/` 已被 `.gitignore` 忽略,需要交付产物时在 Release 中附带。
 - 插件运行在用户浏览器中,可以读取当前会话的可见字段;分发时必须提示用户只安装信任来源的插件。
-- 收录说明或用户说明里要写明:当前没有配置界面,参数只能通过插件存储与导入入口设定。
+- 收录说明或用户说明里要写明:参数在宿主插件详情页的设置表单里设定,总开关默认关;JSON 导入入口作为兼容路径保留,宿主过旧没有设置表面时只有导入路径可用。

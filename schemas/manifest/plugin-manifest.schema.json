@@ -31,7 +31,7 @@
     },
     "capabilities": {
       "type": "array",
-      "description": "申请的能力,不得重复;net:fetch 只对内置插件开放;provider:source 与 chat:request 也在能力表内",
+      "description": "申请的能力,不得重复;net:fetch 只对内置插件开放;settings:surface、provider:source 与 chat:request 也在能力表内",
       "items": {
         "$ref": "#/$defs/capability"
       },
@@ -99,6 +99,7 @@
         "events:session",
         "notify",
         "settings:locale",
+        "settings:surface",
         "net:fetch",
         "assets:read",
         "plugins:storage",

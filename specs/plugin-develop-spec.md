@@ -36,12 +36,12 @@
 
 | 能力 | 可见范围 |
 |:---:|:---:|
-| `sessions:list`、`sessions:read`、`sessions:rename`、`events:session`、`notify`、`settings:locale` | 全部插件 |
+| `sessions:list`、`sessions:read`、`sessions:rename`、`events:session`、`notify`、`settings:locale`、`settings:surface` | 全部插件 |
 | `assets:read`、`plugins:storage` | 全部插件 |
 | `chat:request`、`provider:source` | 全部插件 |
 | `net:fetch` | 仅内置插件,第三方申请按 `unknown-capability` 拒绝;插件也不得自建网络通道,见[运行时规范](plugin-runtime-spec.md) 5.5 |
 
-`chat:request` 只服务 `context.chat.onBeforeRequest`:登记请求前处理器时,清单须同时申请该能力与挂载点 `chat:before-request`,缺任一项抛 `PluginCapabilityError`。`provider:source` 约束的是能否声明供应端点,登记入口为 `context.provider.registerSource`;执行由引擎按端点描述发起,插件拿不到执行侧的标识。
+`chat:request` 只服务 `context.chat.onBeforeRequest`:登记请求前处理器时,清单须同时申请该能力与挂载点 `chat:before-request`,缺任一项抛 `PluginCapabilityError`。`provider:source` 约束的是能否声明供应端点,登记入口为 `context.provider.registerSource`;执行由引擎按端点描述发起,插件拿不到执行侧的标识。`settings:surface` 约束能否登记设置字段描述,登记入口为 `context.settings.register`,读值入口为 `context.settings.values()`;字段描述的形状、规模上限与问题码见引擎的 `pluginSettings.ts` 实现。
 
 挂载点表:
 

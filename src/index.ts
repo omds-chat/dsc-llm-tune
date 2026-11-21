@@ -4,15 +4,21 @@ import {
   createParameterDocument,
   readStoredParameters,
 } from './host/store.js'
+import {
+  createSettingsDescriptor,
+  resolveParameters,
+} from './host/settings.js'
+import type { SettingsLocale } from './host/settings.js'
 import { manifest } from './manifest.js'
 import { readParameters } from './tuning/params.js'
 import type { ParameterError, ParameterSet } from './tuning/params.js'
-import type { PluginContext, PluginStorageApi } from './types.js'
+import type { PluginContext, PluginSettingsApi, PluginStorageApi, SettingValue } from './types.js'
 
 export { manifest }
 export * from './tuning/params.js'
 export * from './host/store.js'
 export * from './host/request-patch.js'
+export * from './host/settings.js'
 
 // 首次激活提示使用的宿主文案键,取自宿主 i18n 的既有键,插件不自造文案
 const INSTALL_NOTICE_KEY = 'pluginInstallDone'
@@ -23,13 +29,18 @@ let active = false
 let firstActivation = true
 
 /**
- * 当前生效的参数。
- * 由激活时的存储读取或 importParameters 交付给装配;null 表示用户没有设定,请求保持原样。
+ * 导入层当前生效的参数。
+ * 由激活时的存储读取或 importParameters 交付;null 表示导入路径没有设定。
+ * 请求前这一层不再直接进补丁,而是与设置页取值按优先级合并(见 resolveParameters),
+ * 设置页没有覆盖值时才使用这一份,这是导入入口保持兼容的方式。
  */
 let activeParams: ParameterSet | null = null
 
 /** 激活时拿到的插件存储引用;未激活时为空,导入只装配到内存 */
 let storage: PluginStorageApi | null = null
+
+/** 激活时拿到的设置能力引用;宿主过旧或未申请能力时为空,设置页不参与 */
+let settingsApi: PluginSettingsApi | null = null
 
 /** 激活时拿到的日志出口;未激活时不写日志 */
 let logger: ((message: string) => void) | null = null
@@ -52,13 +63,13 @@ const describeParameters = (params: ParameterSet): string => {
 }
 
 /**
- * 当前生效的参数,供将来的插件设置面板读取。
- * 未激活或用户没有设定时返回 null。
+ * 导入层当前生效的参数,供测试与后续工具读取。
+ * 设置页的取值在请求前实时读取,不进这一份;未激活或导入路径没有设定时返回 null。
  */
 export const getActiveParameters = (): ParameterSet | null => activeParams
 
 /**
- * 从插件存储读取参数文档并装配。
+ * 从插件存储读取参数文档,装配为导入层的参数。
  *
  * 先清空再读:只有文档存在且合法才交付,缺失、版本不符、字段非法都保持未设定,
  * 请求按原样发出,不阻断激活,也不做部分保留。激活之后由 importParameters 与
@@ -98,12 +109,13 @@ export type ParameterImportResult =
   | { ok: false; error: ParameterError }
 
 /**
- * 显式导入一份参数文档(JSON 文本),供将来的插件设置面板与当前的过渡入口调用。
+ * 显式导入一份参数文档(JSON 文本)。
  *
- * 这是插件目前唯一的设定入口:宿主还没有提供插件设置界面能力,用户把 JSON 文本交给
- * 这个函数即可生效,形状见 docs/design/parameter-tuning.md 4 节。
+ * 宿主设置表面接入后,这是保留的兼容入口:设置页有覆盖值时以设置页为准,
+ * 没有时回落到导入值;适合批量粘贴参数与保留空白字符的停止词,形状见
+ * docs/design/parameter-tuning.md 4 节。
  *
- * 与 activate 的分工:这一条走完整的读取与校验,成功才替换当前生效的参数,
+ * 与 activate 的分工:这一条走完整的读取与校验,成功才替换导入层的参数,
  * 并在已激活时把同一份参数写进插件存储;写入失败不回滚内存里的装配结果,
  * 只把 persisted 置为 false 并写日志,因为请求已经能按新参数改写。
  * 未激活时只装配到内存,下次激活会重新读存储。
@@ -139,7 +151,7 @@ export const importParameters = (jsonText: string): ParameterImportResult => {
 }
 
 /**
- * 清除用户设定的参数,请求回到原样。
+ * 清除导入层的参数。设置页的取值由宿主的设置命名空间管理,不在这里清除。
  *
  * 已激活时同时删除插件存储里的参数文档;删除失败只写日志,内存里的参数仍然被清空。
  * 返回是否已从插件存储删除,未激活时返回 false,只清内存。
@@ -164,10 +176,54 @@ export const clearParameters = (): boolean => {
 }
 
 /**
+ * 登记宿主设置表面。
+ *
+ * 清单申请了 settings:locale 与 settings:surface:先读宿主语言给字段标签选词,
+ * 再登记参数字段描述,宿主据此渲染设置表单。登记返回的释放函数由引擎在停用与
+ * 卸载时自动执行,这里只保留引用用于观察。
+ * 宿主过旧没有 settings 成员、语言读取或登记失败时都不阻断激活,参数回落导入入口。
+ * 标签按激活时的宿主语言定型,之后切换语言需要重新激活才能换词。
+ */
+const registerSettingsSurface = async (): Promise<void> => {
+  const api = settingsApi
+  if (!api || typeof api.register !== 'function' || typeof api.locale !== 'function') {
+    log('宿主未提供设置表面,参数只从导入入口装配')
+    return
+  }
+
+  try {
+    const locale: SettingsLocale = (await api.locale()) === 'en-US' ? 'en-US' : 'zh-CN'
+    api.register(createSettingsDescriptor(locale))
+    log('已登记设置表面,字段标签按宿主语言 ' + locale + ' 渲染')
+  } catch (error) {
+    log('登记设置表面失败,参数只从导入入口装配: ' + describeError(error))
+  }
+}
+
+/**
+ * 请求前逐次读取当前应生效的参数:设置页实时值与导入层参数按优先级合并。
+ *
+ * settings.values() 是同步只读调用,每次请求读一次,用户在设置页保存后无需
+ * 重新激活即可生效;读取抛错(例如触发限流)只写日志并回落导入值,不阻断请求。
+ */
+const resolveCurrentParameters = (): ParameterSet | null => {
+  let settingsValues: Record<string, SettingValue> | null = null
+  const api = settingsApi
+  if (api && typeof api.values === 'function') {
+    try {
+      settingsValues = api.values()
+    } catch (error) {
+      log('读取设置值失败,回落导入参数: ' + describeError(error))
+    }
+  }
+  return resolveParameters(settingsValues, activeParams)
+}
+
+/**
  * 启动入口,引擎在激活时调用,超时 5 秒。
  * 返回值被忽略,不要用它传递释放函数。
  */
-export const activate = (context: PluginContext): void => {
+export const activate = async (context: PluginContext): Promise<void> => {
   if (active) {
     context.log(manifest.id + ': already active, skip activate')
     return
@@ -176,6 +232,7 @@ export const activate = (context: PluginContext): void => {
   active = true
   logger = (message) => context.log(message)
   storage = context.storage
+  settingsApi = context.settings
 
   const conflicts = manifest.conflicts ?? []
   context.log(
@@ -183,13 +240,13 @@ export const activate = (context: PluginContext): void => {
     + ', conflicts ' + (conflicts.length === 0 ? 'none' : conflicts.join(', ')),
   )
 
-  // 先取参数再登记处理器:处理器每次请求重新读取 activeParams,顺序不影响结果,
-  // 但先装配能让激活日志与首次请求看到同一份参数
+  // 先登记设置表面再装配导入参数:两条取值路径互不依赖,顺序只影响激活日志的先后
+  await registerSettingsSurface()
   loadStoredParameters()
 
   releaseRequestHandler = context.chat.onBeforeRequest(
     createBeforeRequestHandler({
-      params: () => activeParams,
+      params: resolveCurrentParameters,
     }),
   )
 
@@ -202,15 +259,16 @@ export const activate = (context: PluginContext): void => {
 /**
  * 停用入口,引擎在停用与卸载时调用,超时 3 秒。
  *
- * 注意：请求前处理器的释放函数由引擎自动执行,此处不再重复调用,
- * 只丢弃本地引用并复位插件自身的状态。当前生效的参数在停用期间保留,
- * 下一次激活以插件存储为准。
+ * 注意：请求前处理器与设置表面登记的释放函数由引擎自动执行,此处不再重复调用,
+ * 只丢弃本地引用并复位插件自身的状态。导入层的参数在停用期间保留,
+ * 下一次激活以插件存储为准;设置页取值随登记撤销由引擎清理,重新激活时再登记。
  */
 export const deactivate = (): void => {
   // 释放函数由引擎自动执行,这里不重复调用,只丢弃本地引用
   if (releaseRequestHandler !== null) {
     releaseRequestHandler = null
   }
+  settingsApi = null
   storage = null
   logger = null
   active = false
