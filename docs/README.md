@@ -26,7 +26,7 @@
 | 顺序 | 准据 | 含义 | 两侧不一致时怎么办 |
 |:---:|:---:|:---:|:---:|
 | 1 | 宿主 `dsc-plugin-engine` 的实现 | 清单校验、能力表、限流、请求补丁收敛、加载的实际行为 | 以实现为准;文档与规范都按实现修正 |
-| 2 | 本仓库的规范与 Schema | 宿主实现的可校验副本:`specs/` 两份规范、`schemas/`、`specs/spec-version.json` | 以规范为准;差异记入 [specs/README.md](../specs/README.md) 的「已知差异」,不修改上游文档 |
+| 2 | 本仓库的规范与 Schema | 宿主实现的可校验副本:`specs/` 两份规范、`schemas/`、`specs/spec-version.json` | 以规范为准;实现与上游文档的口径差异由上游 specs/README.md 的「已知差异」表留痕,本仓本地差异记入 [specs/README.md](../specs/README.md),不修改上游文档 |
 | 3 | 脚本与测试的行为 | [scripts/validate-specs.mjs](../scripts/validate-specs.mjs)、[scripts/test/](../scripts/test/) 下的测试、构建脚本的校验结果 | 脚本与规范冲突时以规范为准并修脚本;脚本拒绝而文档放行时,先按规范定口径,再同时修文档与脚本 |
 | 4 | 设计文档 | [docs/design/parameter-tuning.md](design/parameter-tuning.md) 中的已定约束 | 与规范冲突时规范优先;与源码、测试冲突时以设计文档为准,由实现与测试对齐(未定稿条目除外) |
 | 5 | README | [README.md](../README.md)、[README.en-US.md](../README.en-US.md) | 与设计文档冲突时以设计文档为准,并同步修正 README |

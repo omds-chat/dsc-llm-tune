@@ -44,7 +44,7 @@ The plugin is eventually collected by dsc-inner-plugin. This repository is the s
 - Every field is optional; a missing field stays out of the patch, so the host keeps its own value for that parameter. With no field at all the patch is empty and the handler returns `null`.
 - Validation happens at the entries: an invalid import rejects the whole document, and the host validates settings-page values against the declared ranges before persisting them. Nothing is re-validated or clamped before a request.
 - `systemPromptAppend` and `systemPromptReplace` are not used: prompts belong to dsc-humanize, this plugin only touches sampling parameters and stop sequences.
-- Patch fields, merge order and clamping rules are specified in [specs/plugin-develop-spec.md](specs/plugin-develop-spec.md) section 2.5.
+- Patch fields, merge order and clamping rules are specified in [specs/plugin-runtime-spec.md](specs/plugin-runtime-spec.md) section 5.8.
 
 ## Setting parameters
 
@@ -145,7 +145,7 @@ Copies of the plugin runtime spec, the plugin development spec and the JSON Sche
 | Manifest schema | [schemas/manifest/plugin-manifest.schema.json](schemas/manifest/plugin-manifest.schema.json) |
 | Runtime meta schema | [schemas/runtime/meta.json](schemas/runtime/meta.json) |
 
-- The implementation in `dsc-plugin-engine` wins over any document; this repository only collects and machine-validates. Differences are recorded under known differences in [specs/README.md](specs/README.md).
+- The implementation in `dsc-plugin-engine` wins over any document; this repository only collects and machine-validates. The spec text matches dsc-plugin-template verbatim; implementation-versus-document differences are tracked in the upstream specs/README.md, and only genuine local differences are recorded in [specs/README.md](specs/README.md).
 - This repository publishes no spec version; other repositories should reference dsc-plugin-template's `specs/spec-version.json` and pin a tag or commit.
 - Validation: `node scripts/validate-specs.mjs` (self-check) and `node scripts/validate-specs.mjs <manifest file>` (single manifest). No network, no dependencies.
 

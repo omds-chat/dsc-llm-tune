@@ -44,7 +44,7 @@ dsc-llm-tune 是一个 dsc 插件,把 LLM 请求的常规参数直接交给用�
 - 四个字段都可以缺省;缺省的字段不进补丁,请求里的对应项保持宿主的原值。四项都不给时补丁为空,处理器返回 `null`。
 - 校验发生在入口期:导入路径越界整份拒绝,设置页取值由宿主按登记的范围校验后才落盘;请求前不重复校验,也不裁剪。
 - 不使用 `systemPromptAppend` 与 `systemPromptReplace`:提示词属于 dsc-humanize 的领域,本插件只碰采样参数与停止词。
-- 补丁的字段范围、合并顺序与收敛规则见 [specs/plugin-develop-spec.md](specs/plugin-develop-spec.md) 2.5 节。
+- 补丁的字段范围、合并顺序与收敛规则见 [specs/plugin-runtime-spec.md](specs/plugin-runtime-spec.md) 5.8 节。
 
 ## 参数设定入口
 
@@ -143,7 +143,7 @@ clearParameters()
 | 清单 Schema | [schemas/manifest/plugin-manifest.schema.json](schemas/manifest/plugin-manifest.schema.json) |
 | 运行时 meta Schema | [schemas/runtime/meta.json](schemas/runtime/meta.json) |
 
-- 规范以 DeepSeek-Chat-Enhanced 的 `dsc-plugin-engine` 实现为准,本仓库只做收拢与机器可校验化,不新增规则;两侧口径不一致时记录在 [specs/README.md](specs/README.md) 的「已知差异」。
+- 规范以 DeepSeek-Chat-Enhanced 的 `dsc-plugin-engine` 实现为准,本仓库只做收拢与机器可校验化,不新增规则;正文与 dsc-plugin-template 逐字一致,实现与上游文档的口径差异由上游 specs/README.md 的「已知差异」表留痕,本仓只留本地差异。
 - 本仓库不发布规范版本;需要引用规范的其他仓库请使用 dsc-plugin-template 的 `specs/spec-version.json`,并用 git 标签或提交固定。
 - 校验命令:`node scripts/validate-specs.mjs`(自检)、`node scripts/validate-specs.mjs <清单文件>`(校验单个清单),不联网、不安装依赖。
 
